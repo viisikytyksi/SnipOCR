@@ -1,0 +1,47 @@
+# SnipOCR settings - このファイルを settings.txt にリネームすると有効になります
+# 行頭 # はコメント。不要な行は消してもかまいません。
+
+# 起動ホットキー（Ctrl / Shift / Alt / Win + 英字1文字）
+hotkey=Ctrl+Shift+S
+
+# OCR エンジン: auto / winrt / tesseract
+#   auto      … tesseract フォルダがあれば Tesseract、無ければ Windows 標準
+#   winrt     … Windows 標準OCR（高速・軽量、小さい字は苦手）
+#   tesseract … 同梱 Tesseract（高精度、やや重い）
+engine=auto
+
+# WinRT 用言語: auto / ja / en など
+language=auto
+
+# OCRモード: normal / line / table / sparse / small
+#   normal … 通常文章
+#   line   … 1行だけ（Tesseract psm=7）
+#   table  … 表。Tesseract TSVからExcel貼り付け用タブ区切りも生成（psm=3）
+#   sparse … 画面上に散らばった文字（psm=11）
+#   small  … 小さい文字向け（現状は通常psm + 拡大前処理）
+mode=normal
+
+# クリップボード形式: auto / plain / excel / markdown / oneline
+#   auto     … tableモードならExcel用TSV、それ以外は通常テキスト
+#   plain    … 通常テキスト
+#   excel    … Excel貼り付け用TSV（無ければ通常テキスト）
+#   markdown … Markdown表（無ければ通常テキスト）
+#   oneline  … 改行を空白へまとめた1行
+copyformat=auto
+
+# Tesseract 用言語（+ で複数指定）: jpn+eng / jpn / eng など
+tesseractlangs=jpn+eng
+
+# Tesseract の解析モード(psm)。6=均一なテキストブロック（既定）
+# 7=1行, 3=自動, 11=疎なテキスト
+tesseractpsm=6
+
+# WinRT で二値化（グレースケール+Otsu）前処理を行うか。通常は false。
+# 背景が単色で文字がにじむ場合に true を試す。
+binarize=false
+
+# OCR 後に結果ウィンドウ（手修正可）を表示するか
+showwindow=true
+
+# OCR 結果を自動でクリップボードにコピーするか
+copytoclipboard=true

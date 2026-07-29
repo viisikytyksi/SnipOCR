@@ -1,0 +1,20 @@
+# Build outputs
+/build/
+
+# Bundled OCR runtime is too large for normal GitHub; keep it in local dist/release zip instead.
+/dist/tesseract/
+
+# Release archives
+*.zip
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+
+# Local settings; use settings.sample.txt as template
+/dist/settings.txt
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
