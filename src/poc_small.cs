@@ -25,7 +25,7 @@ class PocSmall
                 g.DrawString("Invoice No. A-12345  合計 301,297 円", f, Brushes.Black, 8, 44);
             }
         }
-        bmp.Save(@"C:\Users\goichi\Documents\SnipOCR\build\_small_sample.png", ImageFormat.Png);
+        bmp.Save(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "_small_sample.png"), ImageFormat.Png);
 
         Console.WriteLine("no upscale (旧挙動):");
         Console.WriteLine("  " + Ocr(bmp).Replace("\n", "\n  "));

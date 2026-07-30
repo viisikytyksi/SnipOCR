@@ -5,7 +5,8 @@
 
 Add-Type -AssemblyName System.Drawing
 
-$OutPath = 'C:\Users\goichi\Documents\SnipOCR\src\app.ico'
+# このスクリプトと同じ場所へ出力する（環境に依存しないように）
+$OutPath = Join-Path $PSScriptRoot 'app.ico'
 $sizes   = @(256, 48, 32, 16)
 
 function New-IconBitmap([int]$s) {

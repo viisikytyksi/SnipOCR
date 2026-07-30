@@ -28,7 +28,7 @@ class PocOcr
                 g.DrawString("Invoice No. A-12345", f2, Brushes.Black, 20, 90);
             }
         }
-        bmp.Save(@"C:\Users\goichi\Documents\SnipOCR\build\_ocr_sample.png", ImageFormat.Png);
+        bmp.Save(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "_ocr_sample.png"), ImageFormat.Png);
 
         // 2) run the same pipeline the app uses
         var eng = OcrEngine.TryCreateFromUserProfileLanguages();
