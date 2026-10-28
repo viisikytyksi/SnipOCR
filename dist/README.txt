@@ -1,4 +1,4 @@
-SnipOCR (portable) - 画面OCRツール
+SnipOCR 1.1.0 (portable) - 画面OCRツール
 ====================================
 
 ■ これは何か

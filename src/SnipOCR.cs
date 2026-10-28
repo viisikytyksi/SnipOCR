@@ -41,6 +41,12 @@ namespace SnipOCR
             catch { try { SetProcessDPIAware(); } catch { } }
 
             // Diagnostics for locked-down work PCs: SnipOCR.exe --selftest <image>
+            if (args != null && args.Length > 0 && (args[0] == "--version" || args[0] == "-v"))
+            {
+                AttachConsole(ATTACH_PARENT_PROCESS);
+                try { Console.WriteLine(AppInfo.Title); } catch { }
+                return;
+            }
             if (args != null && args.Length > 0 && args[0] == "--selftest")
             {
                 AttachConsole(ATTACH_PARENT_PROCESS);
@@ -86,7 +92,7 @@ namespace SnipOCR
                 }
                 catch { }
                 var cfg = Settings.Load();
-                Console.WriteLine("SnipOCR self-test");
+                Console.WriteLine(AppInfo.Title + " self-test");
                 Console.WriteLine("  base dir      : " + AppDomain.CurrentDomain.BaseDirectory);
                 Console.WriteLine("  engine setting: " + cfg.Engine);
                 Console.WriteLine("  rapidocr dir  : " + RapidOcr.Dir);
@@ -130,6 +136,26 @@ namespace SnipOCR
             }
             return code;
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Product identity (version comes from AssemblyInfo.cs)
+    // ---------------------------------------------------------------------
+    static class AppInfo
+    {
+        public static readonly string Version = ReadVersion();
+
+        static string ReadVersion()
+        {
+            try
+            {
+                var v = typeof(AppInfo).Assembly.GetName().Version;
+                return v.Major + "." + v.Minor + "." + v.Build;
+            }
+            catch { return "1.1.0"; }
+        }
+
+        public static string Title { get { return "SnipOCR " + Version; } }
     }
 
     // ---------------------------------------------------------------------
@@ -236,7 +262,7 @@ namespace SnipOCR
         public void Save()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("# SnipOCR settings");
+            sb.AppendLine("# " + AppInfo.Title + " settings");
             sb.AppendLine("hotkey=" + HotkeyText);
             sb.AppendLine("engine=" + Engine);
             sb.AppendLine("language=" + Language);
@@ -304,7 +330,7 @@ namespace SnipOCR
             _tray = new NotifyIcon
             {
                 Icon = AppIcons.Tray,
-                Text = "SnipOCR  (" + _cfg.HotkeyText + " でキャプチャ)",
+                Text = "SnipOCR  " + AppInfo.Version + "  (" + _cfg.HotkeyText + " でキャプチャ)",
                 Visible = true
             };
             var menu = new ContextMenuStrip();
@@ -329,9 +355,10 @@ namespace SnipOCR
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("バージョン情報", null, (s, e) =>
                 MessageBox.Show(
-                    "SnipOCR (portable)\nOCR engine: " + OcrService.EngineInfo(_cfg) +
-                    "\nHotkey: " + _cfg.HotkeyText,
-                    "SnipOCR", MessageBoxButtons.OK, MessageBoxIcon.Information));
+                    AppInfo.Title + " (portable)\nOCR engine: " + OcrService.EngineInfo(_cfg) +
+                    "\nHotkey: " + _cfg.HotkeyText +
+                    "\nModels: " + (RapidOcr.IsAvailable() ? "rapidocr (PP-OCRv6 small)" : "rapidocr なし (WinRT/Tesseract)"),
+                    AppInfo.Title, MessageBoxButtons.OK, MessageBoxIcon.Information));
             menu.Items.Add("終了", null, (s, e) => ExitApp());
             _tray.ContextMenuStrip = menu;
             _tray.DoubleClick += (s, e) => StartCapture();

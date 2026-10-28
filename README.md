@@ -1,6 +1,7 @@
 # SnipOCR
 
-Portable offline screen OCR tool for Windows.
+Portable offline screen OCR tool for Windows. Current release: **1.1.0**
+([changelog](CHANGELOG.md)).
 
 - WinForms / .NET Framework 4.8, no admin rights, no installer
 - Snap a region, get text (and Excel/Markdown tables) on the clipboard

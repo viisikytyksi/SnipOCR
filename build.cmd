@@ -79,7 +79,7 @@ REM Regenerate it with:  powershell -ExecutionPolicy Bypass -File src\make_icon.
   -reference:"%WINMD%" ^
   -reference:"%CONTRACT%" ^
   -reference:"%FOUNDATION%" ^
-  "%~dp0src\SnipOCR.cs" "%~dp0src\RapidOcr.cs"
+  "%~dp0src\AssemblyInfo.cs" "%~dp0src\SnipOCR.cs" "%~dp0src\RapidOcr.cs"
 
 if errorlevel 1 ( echo [BUILD FAILED] & exit /b 1 )
 
