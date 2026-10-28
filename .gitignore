@@ -4,6 +4,14 @@
 # Bundled OCR runtime is too large for normal GitHub; keep it in local dist/release zip instead.
 /dist/tesseract/
 
+# Fetched ONNX Runtime binaries, PP-OCRv6 models and winmd metadata.
+# Populate with: powershell -ExecutionPolicy Bypass -File tools\fetch_deps.ps1
+/lib/
+/models/
+/tools/sdk/
+/dist/rapidocr/
+/dist/*.dll
+
 # Release archives
 *.zip
 

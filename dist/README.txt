@@ -6,11 +6,12 @@ SnipOCR (portable) - 画面OCRツール
   テキストをクリップボードにコピー／結果ウィンドウに表示する常駐ツールです。
   - 完全オフライン動作（インターネット不要）
   - 管理者権限不要・インストール不要（このフォルダを置くだけ／USBでも可）
-  - OCR エンジンは2種類を切替可能（既定=auto）:
-      * Tesseract（同梱 tesseract フォルダ）… 高精度。小さい字・日本語に強い。
-      * Windows 内蔵（Windows.Media.Ocr）    … 高速・軽量。追加ファイル不要。
-    tesseract フォルダごとコピーすれば Tesseract が自動で使われます（推奨）。
-    軽量にしたい場合は tesseract フォルダを削除すれば Windows 内蔵に切替わります。
+  - OCR エンジンは3種類を切替可能（既定=auto）:
+      * RapidOCR（同梱 rapidocr フォルダ） … PP-OCRv6。小さい日本語に最も強い（既定）
+      * Tesseract（同梱 tesseract フォルダ） … 高速。小さい字はやや弱い
+      * Windows 内蔵（Windows.Media.Ocr）    … 最速・追加ファイル不要。小さい字は苦手
+    auto は「RapidOCR → Tesseract → Windows 内蔵」の順で、見つかったものを使います。
+    トレイメニュー →「OCRエンジン」で固定することもできます。
 
 ■ 使い方
   1. SnipOCR.exe をダブルクリックで起動（タスクトレイに常駐します）。
@@ -23,6 +24,11 @@ SnipOCR (portable) - 画面OCRツール
      クリップボードにはExcelにそのまま貼れるタブ区切りテキストが入ります。
   6. 終了はトレイアイコン右クリック →「終了」。
 
+■ 動作確認（コマンドプロンプトから）
+  SnipOCR.exe --selftest               … エンジン/モデルの状態を表示
+  SnipOCR.exe --selftest shot.png      … その画像を実際に読み取って結果を表示
+  職場PCで「動かない」ときは、まずこれを実行して原因を切り分けてください。
+
 ■ ネット経由でコピーした場合の注意（ブロック解除）
   他PCやメールで受け取った exe は「ブロック」属性が付くことがあります。
   実行できない／警告が出る場合：
@@ -30,23 +36,32 @@ SnipOCR (portable) - 画面OCRツール
   （管理者権限は不要です）
 
 ■ フォルダ構成
-    SnipOCR.exe            … 本体
-    README.txt             … このファイル
-    settings.sample.txt    … 設定サンプル（settings.txt にリネームで有効）
-    tesseract\             … 同梱 Tesseract（tesseract.exe + tessdata\jpn/eng）
-                             ※このフォルダごと職場PCへコピーしてください
+    SnipOCR.exe                    … 本体
+    README.txt                     … このファイル
+    使い方.html                    … 画面付きの簡易マニュアル
+    settings.sample.txt            … 設定サンプル（settings.txt にリネームで有効）
+    rapidocr\                      … RapidOCR のモデル（PP-OCRv6 det/rec）
+                                     ※このフォルダごと職場PCへコピーしてください
+    onnxruntime.dll                … 推論エンジン本体（必須）
+    onnxruntime_providers_shared.dll
+    Microsoft.ML.OnnxRuntime.dll   … .NET 用ラッパー
+    System.Memory.dll              … .NET Framework 用の補助 DLL
+    System.Buffers.dll
+    System.Runtime.CompilerServices.Unsafe.dll
+    tesseract\                     … 同梱 Tesseract（任意。tesseract.exe + tessdata）
+                                     ※無くても RapidOCR で動作します
 
 ■ 設定（任意）
   exe と同じフォルダに settings.txt を置くと動作を変えられます（無くても既定で動作）。
   例（settings.sample.txt を settings.txt にリネームして編集）:
     hotkey=Ctrl+Shift+S     … 起動ホットキー
-    engine=auto             … auto / winrt / tesseract
+    engine=auto             … auto / rapidocr / winrt / tesseract
     language=auto           … WinRT用言語 auto / ja / en など
     mode=normal             … normal / line / table / sparse / small
     copyformat=auto         … auto / plain / excel / markdown / oneline
     tesseractlangs=jpn+eng  … Tesseract用言語
     tesseractpsm=6          … Tesseract解析モード(6=ブロック,7=1行,11=疎。modeで上書きあり)
-    binarize=false          … WinRTで二値化前処理するか
+    binarize=false          … WinRTで二値化前処理するか（RapidOCR では未使用）
     showwindow=true         … 結果ウィンドウを表示するか
     copytoclipboard=true    … 自動でクリップボードにコピーするか
   ※ フォルダが書込不可の場合、設定は %LOCALAPPDATA%\SnipOCR\settings.txt に保存されます。
@@ -55,12 +70,19 @@ SnipOCR (portable) - 画面OCRツール
   Win+R →「shell:startup」→ 開いたフォルダに SnipOCR.exe のショートカットを置く。
 
 ■ うまく動かないとき
+  - 「rapidocr フォルダが見つかりません」通知が出る
+      → rapidocr フォルダを exe と同じ場所に置いてください。
+        無い場合は Windows 標準 OCR で動作します（自動フォールバック）。
   - 「OCR 言語リソースが見つかりません」通知が出る
-      → 設定 → 時刻と言語 → 言語 → 日本語 →「オプション」→「文字認識」機能を追加。
-        （この追加は環境により管理者権限が必要な場合があります）
+      → rapidocr フォルダがある場合は出ません。無い場合は 設定 → 時刻と言語 →
+        言語 → 日本語 →「オプション」→「文字認識」機能を追加してください。
   - 管理者権限で動いている別アプリのウィンドウ上ではキャプチャできないことがあります。
   - UAC 画面・ロック画面・セキュアデスクトップはキャプチャできません（OS 仕様）。
+  - 迷ったら SnipOCR.exe --selftest で状態を確認してください。
 
 ■ ビルドし直すには（開発者向け）
-  build.cmd をダブルクリック。Windows 標準の C# コンパイラと Windows SDK のみ使用。
+  build.cmd をダブルクリック。Windows 標準の C# コンパイラのみ使用。
   Visual Studio・NuGet・インターネットは不要です。
+  依存 DLL（lib\）とモデル（models\）が無い場合は、ネット接続のある PC で
+    powershell -ExecutionPolicy Bypass -File tools\fetch_deps.ps1
+  を一度実行してから build.cmd を実行してください。

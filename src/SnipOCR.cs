@@ -29,12 +29,24 @@ namespace SnipOCR
         static extern bool SetProcessDPIAware();
         static readonly IntPtr PER_MONITOR_AWARE_V2 = new IntPtr(-4);
 
+        [DllImport("kernel32.dll")]
+        static extern bool AttachConsole(int processId);
+        const int ATTACH_PARENT_PROCESS = -1;
+
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             // Per-Monitor DPI aware so screen capture uses true physical pixels.
             try { if (!SetProcessDpiAwarenessContext(PER_MONITOR_AWARE_V2)) SetProcessDPIAware(); }
             catch { try { SetProcessDPIAware(); } catch { } }
+
+            // Diagnostics for locked-down work PCs: SnipOCR.exe --selftest <image>
+            if (args != null && args.Length > 0 && args[0] == "--selftest")
+            {
+                AttachConsole(ATTACH_PARENT_PROCESS);
+                Environment.ExitCode = SelfTest.Run(args);
+                return;
+            }
 
             bool createdNew;
             using (var mtx = new Mutex(true, "SnipOCR_SingleInstance_v1", out createdNew))
@@ -49,6 +61,74 @@ namespace SnipOCR
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new TrayContext());
             }
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Headless self-test: verifies that the OCR stack works on this PC.
+    //   SnipOCR.exe --selftest               ... engine availability only
+    //   SnipOCR.exe --selftest shot.png      ... also OCR one image to stdout
+    // ---------------------------------------------------------------------
+    static class SelfTest
+    {
+        public static int Run(string[] args)
+        {
+            int code = 0;
+            try
+            {
+                // a winexe has no console of its own; write UTF-8 bytes straight to
+                // the inherited handle so Japanese output survives redirection.
+                try
+                {
+                    var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false));
+                    stdout.AutoFlush = true;
+                    Console.SetOut(stdout);
+                }
+                catch { }
+                var cfg = Settings.Load();
+                Console.WriteLine("SnipOCR self-test");
+                Console.WriteLine("  base dir      : " + AppDomain.CurrentDomain.BaseDirectory);
+                Console.WriteLine("  engine setting: " + cfg.Engine);
+                Console.WriteLine("  rapidocr dir  : " + RapidOcr.Dir);
+                Console.WriteLine("  det model     : " + RapidOcr.DetModelPath + " (" + (File.Exists(RapidOcr.DetModelPath) ? "found" : "MISSING") + ")");
+                Console.WriteLine("  rec model     : " + RapidOcr.RecModelPath + " (" + (File.Exists(RapidOcr.RecModelPath) ? "found" : "MISSING") + ")");
+                Console.WriteLine("  rapidocr ready: " + RapidOcr.IsAvailable());
+                Console.WriteLine("  active engine : " + OcrService.EngineInfo(cfg));
+                string warn = OcrService.SelfCheck(cfg);
+                if (warn != null) Console.WriteLine("  warning       : " + warn);
+                if (!RapidOcr.IsAvailable()) code = 2;
+
+                if (args.Length > 1)
+                {
+                    string path = args[1];
+                    if (!File.Exists(path))
+                    {
+                        Console.WriteLine("  image not found: " + path);
+                        return 3;
+                    }
+                    using (var bmp = new Bitmap(path))
+                    {
+                        var sw = Stopwatch.StartNew();
+                        var res = OcrService.RecognizeWithFormats(bmp, cfg);
+                        sw.Stop();
+                        Console.WriteLine("  image         : " + path + " " + bmp.Width + "x" + bmp.Height);
+                        Console.WriteLine("  result engine : " + res.Engine + " in " + sw.ElapsedMilliseconds + "ms");
+                        Console.WriteLine("  --- text ---");
+                        Console.WriteLine(res.Text);
+                        if (res.ExcelTsv.Length > 0)
+                        {
+                            Console.WriteLine("  --- excel tsv ---");
+                            Console.WriteLine(res.ExcelTsv);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                try { Console.WriteLine("  FAILED: " + ex.GetType().Name + ": " + ex.Message); } catch { }
+                return 4;
+            }
+            return code;
         }
     }
 
@@ -95,7 +175,7 @@ namespace SnipOCR
         public bool CopyToClipboard = true;
 
         // OCR engine selection
-        public string Engine = "auto";                   // auto | winrt | tesseract
+        public string Engine = "auto";                   // auto | rapidocr | winrt | tesseract
         public string TesseractLangs = "jpn+eng";        // tesseract -l value
         public int TesseractPsm = 6;                      // page segmentation mode
         public bool Binarize = false;                    // grayscale+Otsu before OCR (winrt)
@@ -236,6 +316,12 @@ namespace SnipOCR
             AddModeMenu(modeMenu, "sparse", "散在テキスト");
             AddModeMenu(modeMenu, "small", "小さい文字");
             menu.Items.Add(modeMenu);
+            var engineMenu = new ToolStripMenuItem("OCRエンジン");
+            AddEngineMenu(engineMenu, "auto", "自動（RapidOCR 優先）");
+            AddEngineMenu(engineMenu, "rapidocr", "RapidOCR (PP-OCRv6)");
+            AddEngineMenu(engineMenu, "tesseract", "Tesseract");
+            AddEngineMenu(engineMenu, "winrt", "Windows 標準");
+            menu.Items.Add(engineMenu);
             var miWin = new ToolStripMenuItem("結果ウィンドウを表示")
             { Checked = _cfg.ShowWindow, CheckOnClick = true };
             miWin.CheckedChanged += (s, e) => { _cfg.ShowWindow = miWin.Checked; _cfg.Save(); };
@@ -272,6 +358,24 @@ namespace SnipOCR
             item.Click += (s, e) =>
             {
                 _cfg.Mode = mode;
+                _cfg.Save();
+                foreach (ToolStripItem it in parent.DropDownItems)
+                {
+                    var mi = it as ToolStripMenuItem;
+                    if (mi != null) mi.Checked = false;
+                }
+                item.Checked = true;
+            };
+            parent.DropDownItems.Add(item);
+        }
+
+        void AddEngineMenu(ToolStripMenuItem parent, string engine, string label)
+        {
+            var item = new ToolStripMenuItem(label);
+            item.Checked = string.Equals(_cfg.Engine, engine, StringComparison.OrdinalIgnoreCase);
+            item.Click += (s, e) =>
+            {
+                _cfg.Engine = engine;
                 _cfg.Save();
                 foreach (ToolStripItem it in parent.DropDownItems)
                 {
@@ -551,11 +655,31 @@ namespace SnipOCR
             string e = (cfg.Engine ?? "auto").ToLowerInvariant();
             if (e == "winrt") return false;
             if (e == "tesseract") return true;          // forced; falls back below if missing
+            if (UseRapidOcr(cfg)) return false;
             return TesseractEngine.IsAvailable();       // auto: prefer bundled tesseract
+        }
+
+        // RapidOCR (PP-OCRv6) is the default when its model folder is present:
+        // it is markedly more accurate than WinRT/Tesseract on small Japanese text.
+        public static bool UseRapidOcr(Settings cfg)
+        {
+            string e = (cfg.Engine ?? "auto").ToLowerInvariant();
+            if (e == "winrt" || e == "tesseract") return false;
+            return RapidOcr.IsAvailable();
+        }
+
+        static bool UseRapidOcrForced(Settings cfg)
+        {
+            return string.Equals((cfg.Engine ?? "").Trim(), "rapidocr", StringComparison.OrdinalIgnoreCase);
         }
 
         public static string Recognize(Bitmap bmp, Settings cfg)
         {
+            if (UseRapidOcr(cfg))
+            {
+                try { return RecognizeRapid(bmp, cfg); }
+                catch { /* fall through to the other engines */ }
+            }
             if (UseTesseract(cfg) && TesseractEngine.IsAvailable())
             {
                 try { return TesseractEngine.Recognize(bmp, cfg); }
@@ -568,6 +692,23 @@ namespace SnipOCR
         {
             var o = new OcrOutput();
             o.Mode = cfg != null ? (cfg.Mode ?? "normal") : "normal";
+            if (UseRapidOcr(cfg))
+            {
+                try
+                {
+                    var lines = RapidOcr.Recognize(bmp);
+                    o.Text = OcrService.CleanText(RapidOcr.ToText(lines));
+                    if (string.Equals(o.Mode, "table", StringComparison.OrdinalIgnoreCase))
+                    {
+                        o.ExcelTsv = RapidOcr.ToTsv(lines);
+                        o.MarkdownTable = TableFormatter.ToMarkdownTable(o.ExcelTsv);
+                    }
+                    o.Engine = "RapidOCR";
+                    o.OneLine = ToOneLine(o.Text);
+                    return o;
+                }
+                catch { /* fall through */ }
+            }
             if (UseTesseract(cfg) && TesseractEngine.IsAvailable())
             {
                 try
@@ -589,6 +730,12 @@ namespace SnipOCR
             o.Engine = "WinRT";
             o.OneLine = ToOneLine(o.Text);
             return o;
+        }
+
+        static string RecognizeRapid(Bitmap bmp, Settings cfg)
+        {
+            var lines = RapidOcr.Recognize(bmp);
+            return CleanText(RapidOcr.ToText(lines));
         }
 
         public static string SelectClipboardText(OcrOutput o, Settings cfg)
@@ -647,6 +794,7 @@ namespace SnipOCR
 
         public static string EngineInfo(Settings cfg)
         {
+            if (cfg != null && UseRapidOcr(cfg)) return RapidOcr.EngineInfo;
             if (cfg != null && UseTesseract(cfg) && TesseractEngine.IsAvailable())
                 return "Tesseract (" + cfg.TesseractLangs + ")";
             var eng = GetEngine(cfg != null ? cfg.Language : "auto");
@@ -656,14 +804,19 @@ namespace SnipOCR
         // returns a warning string if OCR is not usable, else null
         public static string SelfCheck(Settings cfg)
         {
+            if (cfg != null && UseRapidOcrForced(cfg) && !RapidOcr.IsAvailable())
+                return "engine=rapidocr ですが rapidocr フォルダ（モデル）が見つかりません。"
+                     + "dist/rapidocr を exe と同じ場所に置いてください。";
             if (cfg != null && (cfg.Engine ?? "").ToLowerInvariant() == "tesseract" && !TesseractEngine.IsAvailable())
                 return "engine=tesseract ですが tesseract フォルダが見つかりません。WinRT で動作します。";
+            if (RapidOcr.IsAvailable()) return null;   // self-contained, no OS language pack needed
             try
             {
                 var langs = OcrEngine.AvailableRecognizerLanguages;
                 bool tess = TesseractEngine.IsAvailable();
                 if ((langs == null || langs.Count == 0) && !tess)
-                    return "この PC には OCR 言語リソースが見つかりません。日本語言語機能の追加、または tesseract フォルダの同梱が必要です。";
+                    return "この PC には OCR 言語リソースが見つかりません。rapidocr フォルダの同梱、"
+                         + "日本語言語機能の追加、または tesseract フォルダの同梱が必要です。";
                 return null;
             }
             catch (Exception ex)

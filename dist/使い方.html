@@ -54,10 +54,19 @@
   <li><strong>Markdown表</strong> … 文書に貼り付ける用</li>
   <li><strong>1行版</strong> … 改行を詰めたもの</li>
 </ul>
-<p>トレイアイコンを右クリック →「モード」を <code>table</code> にしておくと、表の認識精度が上がります。</p>
+<p>トレイアイコンを右クリック →「OCRモード」を <code>表 / Excel</code> にしておくと、表の認識精度が上がります。</p>
+
+<h2>OCRエンジンについて</h2>
+<p>読み取りの方式（エンジン）は3つあり、トレイアイコンを右クリック →「OCRエンジン」で切り替えられます。通常は <strong>自動</strong> のままで構いません。</p>
+<table>
+  <tr><th>RapidOCR</th><td>PP-OCRv6（日本語対応）。<strong>小さい画面の文字に最も強く、既定でこちらが使われます</strong>。<span class="file">rapidocr</span> フォルダが必要です。</td></tr>
+  <tr><th>Tesseract</th><td><span class="file">tesseract</span> フォルダを同梱した場合のみ。速いが小さい日本語は誤読しやすい。</td></tr>
+  <tr><th>Windows 標準</th><td>OS内蔵。追加ファイル不要で最速だが、12px前後の日本語は崩れやすい。</td></tr>
+</table>
+<p>自動では「RapidOCR → Tesseract → Windows標準」の順に、使えるものを選びます。<span class="file">rapidocr</span> フォルダを消せば、以前と同じ動作に戻ります。</p>
 
 <h2>うまく読めないとき</h2>
-<p>トレイアイコンを右クリックして、モードを変えてみてください。</p>
+<p>まずはトレイアイコンを右クリックして、モードを変えてみてください。</p>
 <table>
   <tr><th>normal</th><td>通常（既定）</td></tr>
   <tr><th>small</th><td>小さい文字。拡大してから読み取ります</td></tr>
@@ -66,6 +75,7 @@
   <tr><th>sparse</th><td>文字が散らばっている画面</td></tr>
 </table>
 <p>結果ウィンドウには元画像のプレビューがあり、<strong>モードを変えて同じ画像を読み直す</strong>こともできます。撮り直す必要はありません。</p>
+<p>読み取った文字が崩れる場合は、範囲を<strong>少し広め</strong>に囲むと改善することがあります（文字の端が切れると誤読の原因になります）。</p>
 
 <h2>終了・設定</h2>
 <ul>
@@ -82,6 +92,10 @@
   <li><strong>ホットキーが効かない</strong> … 他のソフトが同じキーを使っています。<code>settings.txt</code> でキーを変えてください。起動時にも警告が出ます。</li>
   <li><strong>起動しているか分からない</strong> … タスクトレイの「^」を押して、隠れているアイコンを確認してください。</li>
   <li><strong>exeを上書きできない</strong> … 起動中は上書きできません。トレイから終了してからコピーしてください。</li>
+  <li><strong>「rapidocr フォルダが見つかりません」と出る</strong> … <span class="file">rapidocr</span> フォルダを exe と同じ場所に置いてください。無い場合は Windows 標準で動きます。</li>
+  <li><strong>動いているか確認したい</strong> … コマンドプロンプトで
+    <code>SnipOCR.exe --selftest</code> を実行すると、エンジンとモデルの状態を表示します。
+    画像を渡すと（<code>--selftest shot.png</code>）その画像を実際に読み取って結果を表示します。</li>
 </ul>
 
 <p>解決しない場合は、<strong>操作した手順と画面に出たメッセージ</strong>を控えて、配布元へ連絡してください。</p>
