@@ -48,6 +48,8 @@ SnipOCR (portable) - 画面OCRツール
     System.Memory.dll              … .NET Framework 用の補助 DLL
     System.Buffers.dll
     System.Runtime.CompilerServices.Unsafe.dll
+    msvcp140.dll / msvcp140_1.dll  … Visual C++ ランタイム（同梱。無い職場PC対策）
+    vcruntime140.dll / vcruntime140_1.dll
     tesseract\                     … 同梱 Tesseract（任意。tesseract.exe + tessdata）
                                      ※無くても RapidOCR で動作します
 

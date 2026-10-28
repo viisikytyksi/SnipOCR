@@ -35,6 +35,7 @@ resident set stays friendly to 8 GB office PCs.
 src/SnipOCR.cs      app, tray, overlay, settings, engine selection
 src/RapidOcr.cs     ONNX Runtime OCR engine (det + rec, DB + CTC)
 lib/                onnxruntime.dll + managed wrapper + .NET Framework shims
+                    + app-local VC++ runtime (works on PCs without the redist)
 models/             PP-OCRv6_det_small.onnx, PP-OCRv6_rec_small.onnx
 tools/sdk/          winmd metadata (only needed when the Windows SDK is absent)
 build.cmd           compiles with the in-box csc.exe; no VS, no NuGet

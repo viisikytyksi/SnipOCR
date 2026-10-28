@@ -66,6 +66,22 @@ Expand-From $mem '^lib/net461/System\.Memory\.dll$' $lib
 Expand-From $buf '^lib/net461/System\.Buffers\.dll$' $lib
 Expand-From $uns '^lib/net461/System\.Runtime\.CompilerServices\.Unsafe\.dll$' $lib
 
+Write-Host '== Visual C++ runtime (app-local copy) =='
+# onnxruntime.dll links MSVCP140 / VCRUNTIME140. Office and most PCs already have
+# them, but a locked-down work PC may not - shipping them next to the exe is the
+# difference between "works" and "no error, no start".
+$vcDlls = @('msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
+foreach ($name in $vcDlls) {
+    $src = Join-Path $env:WINDIR "System32\$name"
+    if (Test-Path $src) {
+        Copy-Item $src (Join-Path $lib $name) -Force
+        Write-Host "  copied $name"
+    }
+    else {
+        Write-Warning "$name not found in System32; install the VC++ 2015-2022 redistributable on the target PC."
+    }
+}
+
 if (-not $SkipModels) {
     Write-Host '== PP-OCRv6 small models (ModelScope, RapidAI mirror) =='
     $base = 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0'
