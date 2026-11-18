@@ -94,5 +94,5 @@ copy /y "%~dp0build\SnipOCR.exe" "%~dp0dist\" >nul
 copy /y "%LIBS%\*.dll" "%~dp0dist\" >nul
 copy /y "%MODELS%\*.onnx" "%~dp0dist\rapidocr\" >nul
 
-echo [OK] Built build\SnipOCR.exe (RapidOCR + WinRT/Tesseract fallback)
+echo [OK] Built build\SnipOCR.exe (RapidOCR, Windows.Media.Ocr fallback)
 endlocal

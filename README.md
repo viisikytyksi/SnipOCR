@@ -1,22 +1,23 @@
 # SnipOCR
 
-Portable offline screen OCR tool for Windows. Current release: **1.1.0**
+Portable offline screen OCR tool for Windows. Current release: **1.2.0**
 ([changelog](CHANGELOG.md)).
 
 - WinForms / .NET Framework 4.8, no admin rights, no installer
 - Snap a region, get text (and Excel/Markdown tables) on the clipboard
-- OCR engines: **RapidOCR (PP-OCRv6 small)** by default, with Tesseract and
-  Windows.Media.Ocr as fallbacks
+- OCR engine: **RapidOCR (PP-OCRv6 small)** on ONNX Runtime, with
+  Windows.Media.Ocr as the only fallback
 
 ## Why RapidOCR
 
-The original engines both struggle with Japanese UI text around 11-16 px:
+The engines earlier versions shipped both struggle with Japanese UI text
+around 11-16 px:
 
 | engine | 11-20 px Japanese (CER) | notes |
 | --- | --- | --- |
 | PP-OCRv6 small (RapidOCR) | **0.5 %** | 10 MB det + 21 MB rec, CPU only |
 | PP-OCRv5 mobile + PP-OCRv4 japan | 9.6 % | no Japanese model exists in v5 |
-| Tesseract (jpn) | — | drops punctuation, splits kana |
+| Tesseract (jpn) | — | removed in 1.2.0: slower than RapidOCR and less accurate |
 | Windows.Media.Ocr | — | garbles "プレビュー" into "プレ乙-" |
 
 CER is character error rate over a synthetic 12-image corpus of 11-20 px Japanese
@@ -68,14 +69,15 @@ blocked by policy, or simply out of language packs.
 `settings.sample.txt` documents every key. The ones that matter most:
 
 ```
-engine=auto        # auto | rapidocr | winrt | tesseract
+engine=auto        # auto | rapidocr | winrt
 mode=normal        # normal | line | table | sparse | small
 copyformat=auto    # auto | plain | excel | markdown | oneline
 hotkey=Ctrl+Shift+S
 ```
 
-`engine=auto` picks RapidOCR when `rapidocr\` exists, then Tesseract when
-`tesseract\` exists, then the Windows engine. Delete the folder to fall back.
+`engine=auto` uses RapidOCR when `rapidocr\` exists and falls back to
+Windows.Media.Ocr when it does not. `engine=winrt` pins the OS engine. A stale
+`engine=tesseract` from an older settings file is read as `auto`.
 
 ## License
 
@@ -85,7 +87,6 @@ MIT License. See [LICENSE](LICENSE).
 
 - PP-OCRv6 small detector/recognizer (PaddleOCR) — Apache License 2.0
 - ONNX Runtime — MIT License
-- Tesseract OCR and tessdata_best — Apache License 2.0
 - RapidOCR's converted models are mirrored from ModelScope; SHA256 values are
   pinned in `tools/fetch_deps.ps1`.
 

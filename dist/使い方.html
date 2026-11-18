@@ -57,13 +57,12 @@
 <p>トレイアイコンを右クリック →「OCRモード」を <code>表 / Excel</code> にしておくと、表の認識精度が上がります。</p>
 
 <h2>OCRエンジンについて</h2>
-<p>読み取りの方式（エンジン）は3つあり、トレイアイコンを右クリック →「OCRエンジン」で切り替えられます。通常は <strong>自動</strong> のままで構いません。</p>
+<p>読み取りの方式（エンジン）は2つあり、トレイアイコンを右クリック →「OCRエンジン」で切り替えられます。通常は <strong>自動</strong> のままで構いません。</p>
 <table>
   <tr><th>RapidOCR</th><td>PP-OCRv6（日本語対応）。<strong>小さい画面の文字に最も強く、既定でこちらが使われます</strong>。<span class="file">rapidocr</span> フォルダが必要です。</td></tr>
-  <tr><th>Tesseract</th><td><span class="file">tesseract</span> フォルダを同梱した場合のみ。速いが小さい日本語は誤読しやすい。</td></tr>
-  <tr><th>Windows 標準</th><td>OS内蔵。追加ファイル不要で最速だが、12px前後の日本語は崩れやすい。</td></tr>
+  <tr><th>Windows 標準</th><td>OS内蔵。追加ファイル不要で最速だが、12px前後の日本語は崩れやすい。<span class="file">rapidocr</span> フォルダが無いときの代替として使われます。</td></tr>
 </table>
-<p>自動では「RapidOCR → Tesseract → Windows標準」の順に、使えるものを選びます。<span class="file">rapidocr</span> フォルダを消せば、以前と同じ動作に戻ります。</p>
+<p>自動では「RapidOCR → Windows標準」の順に、使えるものを選びます。</p>
 
 <h2>うまく読めないとき</h2>
 <p>まずはトレイアイコンを右クリックして、モードを変えてみてください。</p>

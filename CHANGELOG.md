@@ -4,6 +4,36 @@ All notable changes to SnipOCR are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and versions
 use [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-11-18
+
+Tesseract removal. RapidOCR is faster than Tesseract and markedly more accurate
+on the small Japanese screen text this tool exists for, so keeping Tesseract as a
+fallback bought nothing and cost ~200 MB of distribution plus a second code path.
+
+### Removed
+
+- The Tesseract engine (`TesseractEngine` in `src/SnipOCR.cs`): process launch,
+  TSV word-box parsing and the `--psm` mapping for `mode=line|table|sparse`.
+- The `tesseractlangs` and `tesseractpsm` settings, and `engine=tesseract` from
+  the tray menu. A settings file that still contains `engine=tesseract` is read
+  as `auto` rather than rejected.
+- The Tesseract-only table code (`TsvWord`, `TableFormatter.ToExcelTsv`); table
+  mode builds its Excel TSV from RapidOCR's detected boxes instead.
+- Tesseract/tessdata from the licence section and from the distribution layout.
+
+### Changed
+
+- `engine=auto` means RapidOCR, then Windows.Media.Ocr. The OS engine stays only
+  for machines that do not carry the `rapidocr\` folder.
+- `mode=line|table|sparse` no longer change engine parameters; they keep their
+  pre-processing/copy behaviour.
+
+### Verified
+
+- `--selftest` on a 420x160 synthetic capture: RapidOCR reads
+  `上書き保存`, `Invoice No. A-12345` and `経費精算 総務 301,297` correctly
+  (982 ms first run, 803 ms warm), and table mode emits tab-separated rows.
+
 ## [1.1.0] - 2026-10-28
 
 Japanese OCR accuracy release. The default engine changed from

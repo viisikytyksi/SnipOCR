@@ -1,4 +1,4 @@
-SnipOCR 1.1.0 (portable) - 画面OCRツール
+SnipOCR 1.2.0 (portable) - 画面OCRツール
 ====================================
 
 ■ これは何か
@@ -6,11 +6,10 @@ SnipOCR 1.1.0 (portable) - 画面OCRツール
   テキストをクリップボードにコピー／結果ウィンドウに表示する常駐ツールです。
   - 完全オフライン動作（インターネット不要）
   - 管理者権限不要・インストール不要（このフォルダを置くだけ／USBでも可）
-  - OCR エンジンは3種類を切替可能（既定=auto）:
-      * RapidOCR（同梱 rapidocr フォルダ） … PP-OCRv6。小さい日本語に最も強い（既定）
-      * Tesseract（同梱 tesseract フォルダ） … 高速。小さい字はやや弱い
-      * Windows 内蔵（Windows.Media.Ocr）    … 最速・追加ファイル不要。小さい字は苦手
-    auto は「RapidOCR → Tesseract → Windows 内蔵」の順で、見つかったものを使います。
+  - OCR エンジンは RapidOCR（同梱 rapidocr フォルダ）を使用します:
+      * RapidOCR（PP-OCRv6）… 小さい日本語に最も強い（既定）
+      * Windows 内蔵（Windows.Media.Ocr）… rapidocr フォルダが無い場合のみ。
+        最速・追加ファイル不要だが、小さい字は苦手
     トレイメニュー →「OCRエンジン」で固定することもできます。
 
 ■ 使い方
@@ -50,19 +49,15 @@ SnipOCR 1.1.0 (portable) - 画面OCRツール
     System.Runtime.CompilerServices.Unsafe.dll
     msvcp140.dll / msvcp140_1.dll  … Visual C++ ランタイム（同梱。無い職場PC対策）
     vcruntime140.dll / vcruntime140_1.dll
-    tesseract\                     … 同梱 Tesseract（任意。tesseract.exe + tessdata）
-                                     ※無くても RapidOCR で動作します
 
 ■ 設定（任意）
   exe と同じフォルダに settings.txt を置くと動作を変えられます（無くても既定で動作）。
   例（settings.sample.txt を settings.txt にリネームして編集）:
     hotkey=Ctrl+Shift+S     … 起動ホットキー
-    engine=auto             … auto / rapidocr / winrt / tesseract
+    engine=auto             … auto / rapidocr / winrt
     language=auto           … WinRT用言語 auto / ja / en など
     mode=normal             … normal / line / table / sparse / small
     copyformat=auto         … auto / plain / excel / markdown / oneline
-    tesseractlangs=jpn+eng  … Tesseract用言語
-    tesseractpsm=6          … Tesseract解析モード(6=ブロック,7=1行,11=疎。modeで上書きあり)
     binarize=false          … WinRTで二値化前処理するか（RapidOCR では未使用）
     showwindow=true         … 結果ウィンドウを表示するか
     copytoclipboard=true    … 自動でクリップボードにコピーするか

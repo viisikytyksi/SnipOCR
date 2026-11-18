@@ -152,7 +152,7 @@ namespace SnipOCR
                 var v = typeof(AppInfo).Assembly.GetName().Version;
                 return v.Major + "." + v.Minor + "." + v.Build;
             }
-            catch { return "1.1.0"; }
+            catch { return "1.2.0"; }
         }
 
         public static string Title { get { return "SnipOCR " + Version; } }
@@ -200,10 +200,9 @@ namespace SnipOCR
         public bool ShowWindow = true;                   // show result window
         public bool CopyToClipboard = true;
 
-        // OCR engine selection
-        public string Engine = "auto";                   // auto | rapidocr | winrt | tesseract
-        public string TesseractLangs = "jpn+eng";        // tesseract -l value
-        public int TesseractPsm = 6;                      // page segmentation mode
+        // OCR engine selection. RapidOCR is the engine; Windows.Media.Ocr remains
+        // only as a fallback for machines without the rapidocr folder.
+        public string Engine = "auto";                   // auto | rapidocr | winrt
         public bool Binarize = false;                    // grayscale+Otsu before OCR (winrt)
 
         public const uint MOD_ALT = 1, MOD_CONTROL = 2, MOD_SHIFT = 4, MOD_WIN = 8;
@@ -247,9 +246,10 @@ namespace SnipOCR
                             case "showwindow": s.ShowWindow = ParseBool(v, s.ShowWindow); break;
                             case "copytoclipboard": s.CopyToClipboard = ParseBool(v, s.CopyToClipboard); break;
                             case "hotkey": s.ParseHotkey(v); break;
-                            case "engine": s.Engine = v.ToLowerInvariant(); break;
-                            case "tesseractlangs": if (v.Length > 0) s.TesseractLangs = v; break;
-                            case "tesseractpsm": { int psm; if (int.TryParse(v, out psm)) s.TesseractPsm = psm; break; }
+                            case "engine":
+                                // "tesseract" was removed in 1.2.0; treat stale settings as auto.
+                                s.Engine = v.ToLowerInvariant() == "tesseract" ? "auto" : v.ToLowerInvariant();
+                                break;
                             case "binarize": s.Binarize = ParseBool(v, s.Binarize); break;
                         }
                     }
@@ -268,8 +268,6 @@ namespace SnipOCR
             sb.AppendLine("language=" + Language);
             sb.AppendLine("mode=" + Mode);
             sb.AppendLine("copyformat=" + CopyFormat);
-            sb.AppendLine("tesseractlangs=" + TesseractLangs);
-            sb.AppendLine("tesseractpsm=" + TesseractPsm);
             sb.AppendLine("binarize=" + (Binarize ? "true" : "false"));
             sb.AppendLine("showwindow=" + (ShowWindow ? "true" : "false"));
             sb.AppendLine("copytoclipboard=" + (CopyToClipboard ? "true" : "false"));
@@ -345,7 +343,6 @@ namespace SnipOCR
             var engineMenu = new ToolStripMenuItem("OCRエンジン");
             AddEngineMenu(engineMenu, "auto", "自動（RapidOCR 優先）");
             AddEngineMenu(engineMenu, "rapidocr", "RapidOCR (PP-OCRv6)");
-            AddEngineMenu(engineMenu, "tesseract", "Tesseract");
             AddEngineMenu(engineMenu, "winrt", "Windows 標準");
             menu.Items.Add(engineMenu);
             var miWin = new ToolStripMenuItem("結果ウィンドウを表示")
@@ -357,7 +354,7 @@ namespace SnipOCR
                 MessageBox.Show(
                     AppInfo.Title + " (portable)\nOCR engine: " + OcrService.EngineInfo(_cfg) +
                     "\nHotkey: " + _cfg.HotkeyText +
-                    "\nModels: " + (RapidOcr.IsAvailable() ? "rapidocr (PP-OCRv6 small)" : "rapidocr なし (WinRT/Tesseract)"),
+                    "\nModels: " + (RapidOcr.IsAvailable() ? "rapidocr (PP-OCRv6 small)" : "rapidocr なし (Windows 標準で動作)"),
                     AppInfo.Title, MessageBoxButtons.OK, MessageBoxIcon.Information));
             menu.Items.Add("終了", null, (s, e) => ExitApp());
             _tray.ContextMenuStrip = menu;
@@ -669,29 +666,22 @@ namespace SnipOCR
     }
 
     // ---------------------------------------------------------------------
-    // OCR service (WinRT Windows.Media.Ocr)
+    // OCR service (RapidOCR by default, Windows.Media.Ocr as the fallback)
     // ---------------------------------------------------------------------
     static class OcrService
     {
         static OcrEngine _cached;
         static string _cachedLang;
 
-        // decide which concrete engine to use for this request
-        static bool UseTesseract(Settings cfg)
-        {
-            string e = (cfg.Engine ?? "auto").ToLowerInvariant();
-            if (e == "winrt") return false;
-            if (e == "tesseract") return true;          // forced; falls back below if missing
-            if (UseRapidOcr(cfg)) return false;
-            return TesseractEngine.IsAvailable();       // auto: prefer bundled tesseract
-        }
-
-        // RapidOCR (PP-OCRv6) is the default when its model folder is present:
-        // it is markedly more accurate than WinRT/Tesseract on small Japanese text.
+        // RapidOCR (PP-OCRv6) is the engine: it is both faster and markedly more
+        // accurate than the engines earlier versions shipped on 11-20px Japanese
+        // screen text, so it has no accuracy fallback to hand over to.
+        // Windows.Media.Ocr stays only as a fallback for machines that have no
+        // rapidocr folder (models are not redistributed with the sources).
         public static bool UseRapidOcr(Settings cfg)
         {
             string e = (cfg.Engine ?? "auto").ToLowerInvariant();
-            if (e == "winrt" || e == "tesseract") return false;
+            if (e == "winrt") return false;
             return RapidOcr.IsAvailable();
         }
 
@@ -705,12 +695,7 @@ namespace SnipOCR
             if (UseRapidOcr(cfg))
             {
                 try { return RecognizeRapid(bmp, cfg); }
-                catch { /* fall through to the other engines */ }
-            }
-            if (UseTesseract(cfg) && TesseractEngine.IsAvailable())
-            {
-                try { return TesseractEngine.Recognize(bmp, cfg); }
-                catch { /* fall back to WinRT on any tesseract failure */ }
+                catch { /* fall through to the OS engine */ }
             }
             return RecognizeWinRt(bmp, cfg);
         }
@@ -734,24 +719,7 @@ namespace SnipOCR
                     o.OneLine = ToOneLine(o.Text);
                     return o;
                 }
-                catch { /* fall through */ }
-            }
-            if (UseTesseract(cfg) && TesseractEngine.IsAvailable())
-            {
-                try
-                {
-                    o.Text = TesseractEngine.Recognize(bmp, cfg);
-                    if (string.Equals(o.Mode, "table", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var words = TesseractEngine.RecognizeWords(bmp, cfg);
-                        o.ExcelTsv = TableFormatter.ToExcelTsv(words);
-                        o.MarkdownTable = TableFormatter.ToMarkdownTable(o.ExcelTsv);
-                    }
-                    o.Engine = "Tesseract";
-                    o.OneLine = ToOneLine(o.Text);
-                    return o;
-                }
-                catch { /* fall back to WinRT */ }
+                catch { /* fall through to the OS engine */ }
             }
             o.Text = RecognizeWinRt(bmp, cfg);
             o.Engine = "WinRT";
@@ -775,16 +743,6 @@ namespace SnipOCR
             if (f == "plain") return o.Text;
             if (cfg != null && string.Equals(cfg.Mode, "table", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(o.ExcelTsv)) return o.ExcelTsv;
             return o.Text;
-        }
-
-        public static int EffectivePsm(Settings cfg)
-        {
-            int psm = cfg != null ? cfg.TesseractPsm : 6;
-            string mode = cfg != null ? (cfg.Mode ?? "normal").ToLowerInvariant() : "normal";
-            if (mode == "line") return 7;
-            if (mode == "table") return 3;
-            if (mode == "sparse") return 11;
-            return psm;
         }
 
         static string ToOneLine(string text)
@@ -822,8 +780,6 @@ namespace SnipOCR
         public static string EngineInfo(Settings cfg)
         {
             if (cfg != null && UseRapidOcr(cfg)) return RapidOcr.EngineInfo;
-            if (cfg != null && UseTesseract(cfg) && TesseractEngine.IsAvailable())
-                return "Tesseract (" + cfg.TesseractLangs + ")";
             var eng = GetEngine(cfg != null ? cfg.Language : "auto");
             return eng != null ? "WinRT (" + eng.RecognizerLanguage.LanguageTag + ")" : "(利用不可)";
         }
@@ -834,21 +790,17 @@ namespace SnipOCR
             if (cfg != null && UseRapidOcrForced(cfg) && !RapidOcr.IsAvailable())
                 return "engine=rapidocr ですが rapidocr フォルダ（モデル）が見つかりません。"
                      + "dist/rapidocr を exe と同じ場所に置いてください。";
-            if (cfg != null && (cfg.Engine ?? "").ToLowerInvariant() == "tesseract" && !TesseractEngine.IsAvailable())
-                return "engine=tesseract ですが tesseract フォルダが見つかりません。WinRT で動作します。";
             if (RapidOcr.IsAvailable()) return null;   // self-contained, no OS language pack needed
             try
             {
                 var langs = OcrEngine.AvailableRecognizerLanguages;
-                bool tess = TesseractEngine.IsAvailable();
-                if ((langs == null || langs.Count == 0) && !tess)
+                if (langs == null || langs.Count == 0)
                     return "この PC には OCR 言語リソースが見つかりません。rapidocr フォルダの同梱、"
-                         + "日本語言語機能の追加、または tesseract フォルダの同梱が必要です。";
+                         + "または日本語言語機能の追加が必要です。";
                 return null;
             }
             catch (Exception ex)
             {
-                if (TesseractEngine.IsAvailable()) return null; // tesseract can still work
                 return "OCR 初期化に失敗しました: " + ex.Message;
             }
         }
@@ -1000,7 +952,7 @@ namespace SnipOCR
             return sb.ToString().TrimEnd();
         }
 
-        // clean plain text (Tesseract): drop spaces adjacent to CJK, normalise newlines
+        // clean plain text: drop spaces adjacent to CJK, normalise newlines
         public static string CleanText(string text)
         {
             if (string.IsNullOrEmpty(text)) return "";
@@ -1036,74 +988,10 @@ namespace SnipOCR
         }
     }
 
-    class TsvWord
-    {
-        public int Left, Top, Width, Height, Conf;
-        public string Text = "";
-        public int Right { get { return Left + Width; } }
-        public int CenterY { get { return Top + Height / 2; } }
-    }
-
     static class TableFormatter
     {
-        public static string ToExcelTsv(List<TsvWord> words)
-        {
-            if (words == null || words.Count == 0) return "";
-            words = words.Where(w => !string.IsNullOrWhiteSpace(w.Text)).OrderBy(w => w.CenterY).ThenBy(w => w.Left).ToList();
-            double avgH = words.Average(w => Math.Max(1, w.Height));
-            int lineTol = Math.Max(8, (int)(avgH * 0.65));
-            var lines = new List<List<TsvWord>>();
-            foreach (var w in words)
-            {
-                List<TsvWord> best = null;
-                int bestDiff = int.MaxValue;
-                foreach (var line in lines)
-                {
-                    int cy = (int)line.Average(x => x.CenterY);
-                    int diff = Math.Abs(w.CenterY - cy);
-                    if (diff < bestDiff) { bestDiff = diff; best = line; }
-                }
-                if (best == null || bestDiff > lineTol)
-                {
-                    best = new List<TsvWord>();
-                    lines.Add(best);
-                }
-                best.Add(w);
-            }
-            lines = lines.OrderBy(l => l.Average(w => w.CenterY)).ToList();
-            double avgW = words.Average(w => Math.Max(1, w.Width));
-            int gapTab = Math.Max(18, (int)(avgW * 1.7));
-            var outLines = new List<string>();
-            foreach (var line in lines)
-            {
-                var row = line.OrderBy(w => w.Left).ToList();
-                var cells = new List<string>();
-                var cell = new StringBuilder();
-                int prevRight = -1;
-                foreach (var w in row)
-                {
-                    if (prevRight >= 0)
-                    {
-                        int gap = w.Left - prevRight;
-                        if (gap > gapTab)
-                        {
-                            cells.Add(CleanCell(cell.ToString()));
-                            cell.Length = 0;
-                        }
-                        else if (cell.Length > 0 && !TouchesCjk(cell[cell.Length - 1], w.Text.Length > 0 ? w.Text[0] : ' '))
-                        {
-                            cell.Append(' ');
-                        }
-                    }
-                    cell.Append(w.Text);
-                    prevRight = Math.Max(prevRight, w.Right);
-                }
-                cells.Add(CleanCell(cell.ToString()));
-                outLines.Add(string.Join("\t", cells.ToArray()));
-            }
-            return string.Join("\r\n", outLines.ToArray());
-        }
-
+        // RapidOCR hands us TSV built from its detected boxes, so all that is left
+        // here is turning that TSV into a Markdown table.
         public static string ToMarkdownTable(string tsv)
         {
             if (string.IsNullOrWhiteSpace(tsv)) return "";
@@ -1132,149 +1020,6 @@ namespace SnipOCR
                 sb.Append(' ').Append(c).Append(' ').Append('|');
             }
             sb.AppendLine();
-        }
-
-        static string CleanCell(string s)
-        {
-            if (s == null) return "";
-            return s.Replace("\t", " ").Replace("\r", " ").Replace("\n", " ").Trim();
-        }
-
-        static bool TouchesCjk(char a, char b)
-        {
-            return IsCjkLocal(a) || IsCjkLocal(b);
-        }
-        static bool IsCjkLocal(char c)
-        {
-            return (c >= 0x3000 && c <= 0x30FF) || (c >= 0x3400 && c <= 0x4DBF) || (c >= 0x4E00 && c <= 0x9FFF) || (c >= 0xFF00 && c <= 0xFFEF);
-        }
-    }
-
-    // ---------------------------------------------------------------------
-    // Tesseract engine (bundled portable tesseract.exe, called as a process)
-    // ---------------------------------------------------------------------
-    static class TesseractEngine
-    {
-        static string Dir
-        {
-            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tesseract"); }
-        }
-        static string Exe { get { return Path.Combine(Dir, "tesseract.exe"); } }
-        static string TessData { get { return Path.Combine(Dir, "tessdata"); } }
-
-        public static bool IsAvailable()
-        {
-            try { return File.Exists(Exe) && Directory.Exists(TessData); }
-            catch { return false; }
-        }
-
-        public static string Recognize(Bitmap bmp, Settings cfg)
-        {
-            string tmp = Path.Combine(Path.GetTempPath(),
-                "snipocr_" + Guid.NewGuid().ToString("N") + ".png");
-            try
-            {
-                // upscale only; tesseract does its own binarisation internally
-                using (Bitmap prepared = OcrService.Preprocess(bmp, false, cfg.Mode))
-                    prepared.Save(tmp, ImageFormat.Png);
-
-                string langs = string.IsNullOrEmpty(cfg.TesseractLangs) ? "jpn+eng" : cfg.TesseractLangs;
-                var psi = new ProcessStartInfo
-                {
-                    FileName = Exe,
-                    Arguments = "\"" + tmp + "\" stdout -l " + langs +
-                                " --psm " + OcrService.EffectivePsm(cfg) +
-                                " --tessdata-dir \"" + TessData + "\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8,
-                    WorkingDirectory = Dir
-                };
-                using (var p = Process.Start(psi))
-                {
-                    string outp = p.StandardOutput.ReadToEnd();
-                    p.StandardError.ReadToEnd(); // drain to avoid deadlock
-                    if (!p.WaitForExit(20000)) { try { p.Kill(); } catch { } }
-                    return OcrService.CleanText(outp);
-                }
-            }
-            finally
-            {
-                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
-            }
-        }
-
-        public static List<TsvWord> RecognizeWords(Bitmap bmp, Settings cfg)
-        {
-            var result = new List<TsvWord>();
-            string tmp = Path.Combine(Path.GetTempPath(),
-                "snipocr_" + Guid.NewGuid().ToString("N") + ".png");
-            try
-            {
-                using (Bitmap prepared = OcrService.Preprocess(bmp, false, cfg.Mode))
-                    prepared.Save(tmp, ImageFormat.Png);
-
-                string langs = string.IsNullOrEmpty(cfg.TesseractLangs) ? "jpn+eng" : cfg.TesseractLangs;
-                var psi = new ProcessStartInfo
-                {
-                    FileName = Exe,
-                    Arguments = "\"" + tmp + "\" stdout -l " + langs +
-                                " --psm " + OcrService.EffectivePsm(cfg) +
-                                " --tessdata-dir \"" + TessData + "\" tsv",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8,
-                    WorkingDirectory = Dir
-                };
-                string outp = "";
-                using (var p = Process.Start(psi))
-                {
-                    outp = p.StandardOutput.ReadToEnd();
-                    p.StandardError.ReadToEnd();
-                    if (!p.WaitForExit(20000)) { try { p.Kill(); } catch { } }
-                }
-                var lines = outp.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
-                if (lines.Length < 2) return result;
-                var header = lines[0].Split('\t');
-                int idxLevel = Array.IndexOf(header, "level");
-                int idxLeft = Array.IndexOf(header, "left");
-                int idxTop = Array.IndexOf(header, "top");
-                int idxWidth = Array.IndexOf(header, "width");
-                int idxHeight = Array.IndexOf(header, "height");
-                int idxConf = Array.IndexOf(header, "conf");
-                int idxText = Array.IndexOf(header, "text");
-                if (idxText < 0 || idxLeft < 0 || idxTop < 0 || idxWidth < 0 || idxHeight < 0) return result;
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    if (lines[i].Length == 0) continue;
-                    var cols = lines[i].Split('\t');
-                    if (cols.Length <= idxText) continue;
-                    int level = 0;
-                    if (idxLevel >= 0 && idxLevel < cols.Length) int.TryParse(cols[idxLevel], out level);
-                    if (idxLevel >= 0 && level != 5) continue;
-                    string text = cols[idxText].Trim();
-                    if (text.Length == 0) continue;
-                    var w = new TsvWord();
-                    int.TryParse(cols[idxLeft], out w.Left);
-                    int.TryParse(cols[idxTop], out w.Top);
-                    int.TryParse(cols[idxWidth], out w.Width);
-                    int.TryParse(cols[idxHeight], out w.Height);
-                    if (idxConf >= 0 && idxConf < cols.Length) int.TryParse(cols[idxConf], out w.Conf);
-                    w.Text = text;
-                    result.Add(w);
-                }
-            }
-            finally
-            {
-                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
-            }
-            return result;
         }
     }
 

@@ -4,11 +4,10 @@
 # 起動ホットキー（Ctrl / Shift / Alt / Win + 英字1文字）
 hotkey=Ctrl+Shift+S
 
-# OCR エンジン: auto / rapidocr / winrt / tesseract
-#   auto      … rapidocr フォルダ → tesseract フォルダ → Windows 標準 の順に使う
+# OCR エンジン: auto / rapidocr / winrt
+#   auto      … rapidocr フォルダがあれば RapidOCR、無ければ Windows 標準
 #   rapidocr  … 同梱 RapidOCR（PP-OCRv6）。小さい日本語に最も強い（推奨）
 #   winrt     … Windows 標準OCR（高速・軽量、小さい字は苦手）
-#   tesseract … 同梱 Tesseract（速い、小さい字はやや苦手）
 engine=auto
 
 # WinRT 用言語: auto / ja / en など
@@ -16,10 +15,10 @@ language=auto
 
 # OCRモード: normal / line / table / sparse / small
 #   normal … 通常文章
-#   line   … 1行だけ（Tesseract psm=7）
-#   table  … 表。Tesseract TSVからExcel貼り付け用タブ区切りも生成（psm=3）
-#   sparse … 画面上に散らばった文字（psm=11）
-#   small  … 小さい文字向け（現状は通常psm + 拡大前処理）
+#   line   … 1行だけ
+#   table  … 表。Excel貼り付け用タブ区切りも生成
+#   sparse … 画面上に散らばった文字
+#   small  … 小さい文字向け（拡大前処理）
 mode=normal
 
 # クリップボード形式: auto / plain / excel / markdown / oneline
@@ -29,13 +28,6 @@ mode=normal
 #   markdown … Markdown表（無ければ通常テキスト）
 #   oneline  … 改行を空白へまとめた1行
 copyformat=auto
-
-# Tesseract 用言語（+ で複数指定）: jpn+eng / jpn / eng など
-tesseractlangs=jpn+eng
-
-# Tesseract の解析モード(psm)。6=均一なテキストブロック（既定）
-# 7=1行, 3=自動, 11=疎なテキスト
-tesseractpsm=6
 
 # WinRT で二値化（グレースケール+Otsu）前処理を行うか。通常は false。
 # 背景が単色で文字がにじむ場合に true を試す。（RapidOCR 使用時は無視されます）
